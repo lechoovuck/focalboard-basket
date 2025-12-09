@@ -70,6 +70,8 @@ func (s *SQLStore) getUsersByCondition(db sq.BaseRunner, condition interface{}, 
 			"create_at",
 			"update_at",
 			"delete_at",
+			"telegram_chat_id",
+			"telegram_notifications_enabled",
 		).
 		From(s.tablePrefix + "users").
 		Where(sq.Eq{"delete_at": 0}).
@@ -130,8 +132,8 @@ func (s *SQLStore) createUser(db sq.BaseRunner, user *model.User) (*model.User, 
 	user.DeleteAt = 0
 
 	query := s.getQueryBuilder(db).Insert(s.tablePrefix+"users").
-		Columns("id", "username", "email", "password", "mfa_secret", "auth_service", "auth_data", "create_at", "update_at", "delete_at").
-		Values(user.ID, user.Username, user.Email, user.Password, user.MfaSecret, user.AuthService, user.AuthData, user.CreateAt, user.UpdateAt, user.DeleteAt)
+		Columns("id", "username", "email", "password", "mfa_secret", "auth_service", "auth_data", "create_at", "update_at", "delete_at", "telegram_chat_id", "telegram_notifications_enabled").
+		Values(user.ID, user.Username, user.Email, user.Password, user.MfaSecret, user.AuthService, user.AuthData, user.CreateAt, user.UpdateAt, user.DeleteAt, user.TelegramChatID, user.TelegramNotificationsEnabled)
 
 	_, err := query.Exec()
 	return user, err
@@ -144,6 +146,8 @@ func (s *SQLStore) updateUser(db sq.BaseRunner, user *model.User) (*model.User, 
 	query := s.getQueryBuilder(db).Update(s.tablePrefix+"users").
 		Set("username", user.Username).
 		Set("email", user.Email).
+		Set("telegram_chat_id", user.TelegramChatID).
+		Set("telegram_notifications_enabled", user.TelegramNotificationsEnabled).
 		Set("update_at", user.UpdateAt).
 		Where(sq.Eq{"id": user.ID})
 
@@ -249,6 +253,8 @@ func (s *SQLStore) usersFromRows(rows *sql.Rows) ([]*model.User, error) {
 			&user.CreateAt,
 			&user.UpdateAt,
 			&user.DeleteAt,
+			&user.TelegramChatID,
+			&user.TelegramNotificationsEnabled,
 		)
 		if err != nil {
 			return nil, err
@@ -258,6 +264,87 @@ func (s *SQLStore) usersFromRows(rows *sql.Rows) ([]*model.User, error) {
 	}
 
 	return users, nil
+}
+
+func (s *SQLStore) getTelegramNotificationPreferences(db sq.BaseRunner, userID string) (map[string]bool, error) {
+	query := s.getQueryBuilder(db).
+		Select(
+			"notify_on_card_create",
+			"notify_on_card_update",
+			"notify_on_card_assign",
+			"notify_on_mentions",
+		).
+		From(s.tablePrefix + "notification_preferences").
+		Where(sq.Eq{"user_id": userID})
+
+	row := query.QueryRow()
+
+	var notifyOnCardCreate, notifyOnCardUpdate, notifyOnCardAssign, notifyOnMentions int
+	err := row.Scan(&notifyOnCardCreate, &notifyOnCardUpdate, &notifyOnCardAssign, &notifyOnMentions)
+	if err != nil {
+		s.logger.Error("Failed to get telegram notification preferences",
+			mlog.String("user_id", userID),
+			mlog.Err(err),
+		)
+		// If no preferences found, return error (no fallback defaults)
+		return nil, err
+	}
+
+	result := map[string]bool{
+		"notify_on_card_create": notifyOnCardCreate != 0,
+		"notify_on_card_update": notifyOnCardUpdate != 0,
+		"notify_on_card_assign": notifyOnCardAssign != 0,
+		"notify_on_mentions":    notifyOnMentions != 0,
+	}
+
+	s.logger.Debug("Retrieved telegram notification preferences from DB",
+		mlog.String("user_id", userID),
+		mlog.Int("notify_on_card_create_int", notifyOnCardCreate),
+		mlog.Int("notify_on_card_update_int", notifyOnCardUpdate),
+		mlog.Int("notify_on_card_assign_int", notifyOnCardAssign),
+		mlog.Int("notify_on_mentions_int", notifyOnMentions),
+		mlog.Bool("notify_on_card_create", result["notify_on_card_create"]),
+		mlog.Bool("notify_on_card_update", result["notify_on_card_update"]),
+		mlog.Bool("notify_on_card_assign", result["notify_on_card_assign"]),
+		mlog.Bool("notify_on_mentions", result["notify_on_mentions"]),
+	)
+
+	return result, nil
+}
+
+func (s *SQLStore) upsertTelegramNotificationPreferences(db sq.BaseRunner, userID string, prefs map[string]bool) error {
+	now := utils.GetMillis()
+
+	boolToInt := func(b bool) int {
+		if b {
+			return 1
+		}
+		return 0
+	}
+
+	// Use INSERT ... ON CONFLICT for upsert
+	query := s.getQueryBuilder(db).
+		Insert(s.tablePrefix + "notification_preferences").
+		Columns("user_id", "notify_on_card_create", "notify_on_card_update", "notify_on_card_assign", "notify_on_mentions", "created_at", "updated_at").
+		Values(
+			userID,
+			boolToInt(prefs["notify_on_card_create"]),
+			boolToInt(prefs["notify_on_card_update"]),
+			boolToInt(prefs["notify_on_card_assign"]),
+			boolToInt(prefs["notify_on_mentions"]),
+			now,
+			now,
+		).
+		Suffix("ON CONFLICT(user_id) DO UPDATE SET notify_on_card_create=?, notify_on_card_update=?, notify_on_card_assign=?, notify_on_mentions=?, updated_at=?",
+			boolToInt(prefs["notify_on_card_create"]),
+			boolToInt(prefs["notify_on_card_update"]),
+			boolToInt(prefs["notify_on_card_assign"]),
+			boolToInt(prefs["notify_on_mentions"]),
+			now,
+		)
+
+	_, err := query.Exec()
+	return err
 }
 
 func (s *SQLStore) patchUserPreferences(db sq.BaseRunner, userID string, patch model.UserPreferencesPatch) (mmModel.Preferences, error) {

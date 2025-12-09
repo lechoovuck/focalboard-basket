@@ -15,6 +15,8 @@ import {getMe, setMe} from '../../store/users'
 import {useAppSelector, useAppDispatch} from '../../store/hooks'
 
 import ModalWrapper from '../modalWrapper'
+import RootPortal from '../rootPortal'
+import TelegramSettingsDialog from '../settings/telegramSettingsDialog'
 
 import {IAppWindow} from '../../types'
 
@@ -28,8 +30,25 @@ const SidebarUserMenu = () => {
     const dispatch = useAppDispatch()
     const history = useHistory()
     const [showRegistrationLinkDialog, setShowRegistrationLinkDialog] = useState(false)
+    const [showTelegramSettings, setShowTelegramSettings] = useState(false)
+    const [telegramPrefsLoading, setTelegramPrefsLoading] = useState(false)
     const user = useAppSelector<IUser|null>(getMe)
     const intl = useIntl()
+
+    const handleOpenTelegramSettings = async () => {
+        setTelegramPrefsLoading(true)
+        try {
+            // Pre-fetch the data to ensure it's loaded before opening the dialog
+            await octoClient.getTelegramPreferences()
+            setShowTelegramSettings(true)
+        } catch (error) {
+            console.error('Failed to load Telegram preferences:', error)
+            // Still show the dialog even if there's an error
+            setShowTelegramSettings(true)
+        } finally {
+            setTelegramPrefsLoading(false)
+        }
+    }
 
     return (
         <div className='SidebarUserMenu'>
@@ -52,6 +71,11 @@ const SidebarUserMenu = () => {
                     <Menu>
                         {user && user.username !== 'single-user' && <>
                             <Menu.Label><b>{user.username}</b></Menu.Label>
+                            <Menu.Text
+                                id='settings'
+                                name={intl.formatMessage({id: 'Sidebar.settings', defaultMessage: 'Settings'})}
+                                onClick={handleOpenTelegramSettings}
+                            />
                             <Menu.Text
                                 id='logout'
                                 name={intl.formatMessage({id: 'Sidebar.logout', defaultMessage: 'Log out'})}
@@ -102,6 +126,16 @@ const SidebarUserMenu = () => {
                     />
                 }
             </ModalWrapper>
+
+            {showTelegramSettings &&
+                <RootPortal>
+                    <TelegramSettingsDialog
+                        onClose={() => {
+                            setShowTelegramSettings(false)
+                        }}
+                    />
+                </RootPortal>
+            }
         </div>
     )
 }

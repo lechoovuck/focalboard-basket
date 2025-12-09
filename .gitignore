@@ -74,3 +74,10 @@ server/vendor
 docker/certs
 docker/data
 server/**/*.coverage
+
+__pycache__
+venv
+
+# Config files with secrets
+config.json
+scripts/telegram-bot/.env

@@ -178,7 +178,7 @@ func (a *App) RegisterUser(username, email, password string) error {
 		return errors.Wrap(err, "Invalid password")
 	}
 
-	_, err = a.store.CreateUser(&model.User{
+	newUser, err := a.store.CreateUser(&model.User{
 		ID:          utils.NewID(utils.IDTypeUser),
 		Username:    username,
 		Email:       email,
@@ -189,6 +189,22 @@ func (a *App) RegisterUser(username, email, password string) error {
 	})
 	if err != nil {
 		return errors.Wrap(err, "Unable to create the new user")
+	}
+
+	// Create default notification preferences for new user
+	defaultPrefs := map[string]bool{
+		"notify_on_card_create": true,
+		"notify_on_card_update": true,
+		"notify_on_card_assign": true,
+		"notify_on_mentions":    true,
+	}
+	err = a.store.UpsertTelegramNotificationPreferences(newUser.ID, defaultPrefs)
+	if err != nil {
+		a.logger.Error("Failed to create notification preferences for new user",
+			mlog.String("user_id", newUser.ID),
+			mlog.Err(err),
+		)
+		// Don't fail user registration if preferences creation fails
 	}
 
 	return nil

@@ -69,6 +69,16 @@ type Configuration struct {
 
 	NotifyFreqCardSeconds  int `json:"notify_freq_card_seconds" mapstructure:"notify_freq_card_seconds"`
 	NotifyFreqBoardSeconds int `json:"notify_freq_board_seconds" mapstructure:"notify_freq_board_seconds"`
+
+	Telegram TelegramConfig `json:"telegram" mapstructure:"telegram"`
+}
+
+// TelegramConfig holds Telegram bot configuration
+type TelegramConfig struct {
+	Enabled       bool   `json:"enabled" mapstructure:"enabled"`
+	BotToken      string `json:"bot_token" mapstructure:"bot_token"`
+	BotUsername   string `json:"bot_username" mapstructure:"bot_username"`
+	BotWebhookURL string `json:"bot_webhook_url" mapstructure:"bot_webhook_url"`
 }
 
 // ReadConfigFile read the configuration from the filesystem.

@@ -13,6 +13,7 @@ import (
 	"github.com/mattermost/focalboard/server/model"
 	"github.com/mattermost/focalboard/server/server"
 	"github.com/mattermost/focalboard/server/services/config"
+	"github.com/mattermost/focalboard/server/services/notify"
 	"github.com/mattermost/focalboard/server/services/permissions/localpermissions"
 )
 import (
@@ -138,12 +139,30 @@ func main() {
 
 	permissionsService := localpermissions.New(db, logger)
 
+	// Initialize notification backends
+	var notifyBackends []notify.Backend
+
+	// Initialize Telegram backend if enabled
+	if config.Telegram.Enabled && config.Telegram.BotWebhookURL != "" {
+		telegramBackend := notify.NewTelegramBackend(config.Telegram.BotWebhookURL, db, logger)
+		notifyBackends = append(notifyBackends, telegramBackend)
+
+		// Add mentions backend for Telegram
+		mentionsBackend := notify.NewTelegramMentionsBackend(config.Telegram.BotWebhookURL, db, logger)
+		notifyBackends = append(notifyBackends, mentionsBackend)
+
+		logger.Info("Telegram notifications enabled",
+			mlog.String("bot_username", config.Telegram.BotUsername),
+			mlog.String("webhook_url", config.Telegram.BotWebhookURL))
+	}
+
 	params := server.Params{
 		Cfg:                config,
 		SingleUserToken:    singleUserToken,
 		DBStore:            db,
 		Logger:             logger,
 		PermissionsService: permissionsService,
+		NotifyBackends:     notifyBackends,
 	}
 
 	server, err := server.New(params)

@@ -12,6 +12,7 @@ import {
 import {createBrowserHistory, History} from 'history'
 
 import BoardPage from './pages/boardPage/boardPage'
+import UserSettings from './components/settings/userSettings'
 import ChangePasswordPage from './pages/changePasswordPage'
 import ErrorPage from './pages/errorPage'
 import LoginPage from './pages/loginPage'
@@ -80,6 +81,12 @@ const FocalboardRouter = (props: Props): JSX.Element => {
         <Router history={browserHistory}>
             <GlobalErrorRedirect/>
             <Switch>
+                <FBRoute
+                    path='/settings'
+                    loginRequired={true}
+                >
+                    <UserSettings/>
+                </FBRoute>
                 <FBRoute path='/error'>
                     <ErrorPage/>
                 </FBRoute>

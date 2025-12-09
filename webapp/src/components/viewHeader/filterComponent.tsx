@@ -1,5 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
+
 import React from 'react'
 import {FormattedMessage} from 'react-intl'
 
@@ -25,6 +26,7 @@ type Props = {
 }
 
 const FilterComponent = (props: Props): JSX.Element => {
+    const isLocalMode = localStorage.getItem('use_local_filters') === 'true'
     const conditionClicked = (optionId: string, filter: FilterClause): void => {
         const {activeView} = props
 
@@ -71,6 +73,13 @@ const FilterComponent = (props: Props): JSX.Element => {
             <div
                 className='FilterComponent'
             >
+                {isLocalMode && (
+                    <div className='local-filter-badge'>
+                        <span className='local-filter-badge__icon'>🔒</span>
+                        <span className='local-filter-badge__text'>Local filter</span>
+                    </div>
+                )}
+
                 {filters.map((filter) => (
                     <FilterEntry
                         key={`${filter.propertyId}-${filter.condition}`}

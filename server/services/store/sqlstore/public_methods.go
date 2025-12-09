@@ -573,6 +573,16 @@ func (s *SQLStore) GetUserPreferences(userID string) (mmModel.Preferences, error
 
 }
 
+func (s *SQLStore) GetTelegramNotificationPreferences(userID string) (map[string]bool, error) {
+	return s.getTelegramNotificationPreferences(s.db, userID)
+
+}
+
+func (s *SQLStore) UpsertTelegramNotificationPreferences(userID string, prefs map[string]bool) error {
+	return s.upsertTelegramNotificationPreferences(s.db, userID, prefs)
+
+}
+
 func (s *SQLStore) GetUserTimezone(userID string) (string, error) {
 	return s.getUserTimezone(s.db, userID)
 

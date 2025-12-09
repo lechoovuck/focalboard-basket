@@ -99,6 +99,23 @@ func (a *API) RegisterRoutes(r *mux.Router) {
 
 	// System routes are outside the /api/v2 path
 	a.registerSystemRoutes(r)
+
+	a.registerTelegramUserRoutes(apiv2)
+	a.registerTelegramBotRoutes(r)
+}
+
+// registerTelegramUserRoutes registers routes hit from the webapp, under /api/v2/telegram/*.
+func (a *API) registerTelegramUserRoutes(r *mux.Router) {
+	r.HandleFunc("/telegram/link", a.sessionRequired(a.handleTelegramLink)).Methods("POST")
+	r.HandleFunc("/telegram/unlink", a.sessionRequired(a.handleTelegramUnlink)).Methods("POST")
+	r.HandleFunc("/telegram/preferences", a.sessionRequired(a.handleGetTelegramPreferences)).Methods("GET")
+	r.HandleFunc("/telegram/preferences", a.sessionRequired(a.handleUpdateTelegramPreferences)).Methods("PUT")
+}
+
+// registerTelegramBotRoutes registers the callback used by the Telegram bot. It is intentionally
+// not wrapped with CSRF middleware, since Telegram will not send our custom headers.
+func (a *API) registerTelegramBotRoutes(r *mux.Router) {
+	r.HandleFunc("/api/v2/telegram/verify", a.handleTelegramVerify).Methods("GET")
 }
 
 func (a *API) RegisterAdminRoutes(r *mux.Router) {

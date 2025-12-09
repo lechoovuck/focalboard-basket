@@ -18,6 +18,12 @@ import {Constants} from './constants'
 import {BoardsCloudLimits} from './boardsCloudLimits'
 import {TopBoardResponse} from './insights'
 import {BoardSiteStatistics} from './statistics'
+import {
+    UpdateTelegramPreferencesRequest,
+    UpdateTelegramPreferencesResponse,
+    TelegramPreferencesResponse,
+    TelegramLinkResponse,
+    TelegramUnlinkResponse} from './telegram/'
 
 //
 // OctoClient is the client interface to the server APIs
@@ -465,7 +471,7 @@ class OctoClient {
     }
 
     // BoardMember
-    async createBoardMember(member: Partial<BoardMember>): Promise<BoardMember|undefined> {
+    async createBoardMember(member: Partial<BoardMember>): Promise<BoardMember | undefined> {
         Utils.log(`createBoardMember: user ${member.userId} and board ${member.boardId}`)
 
         const body = JSON.stringify(member)
@@ -482,7 +488,7 @@ class OctoClient {
         return this.getJson<BoardMember>(response, {} as BoardMember)
     }
 
-    async joinBoard(boardId: string, allowAdmin: boolean): Promise<BoardMember|undefined> {
+    async joinBoard(boardId: string, allowAdmin: boolean): Promise<BoardMember | undefined> {
         Utils.log(`joinBoard: board ${boardId}`)
         let path = `/api/v2/boards/${boardId}/join`
         if (allowAdmin) {
@@ -623,7 +629,7 @@ class OctoClient {
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
 
         if (xhr.upload) {
-            xhr.upload.onprogress = () => {}
+            xhr.upload.onprogress = () => { }
         }
         xhr.send(formData)
         return xhr
@@ -1060,7 +1066,7 @@ class OctoClient {
         return (await this.getJson(response, {})) as TopBoardResponse
     }
 
-    async moveBlockTo(blockId: string, where: 'before'|'after', dstBlockId: string): Promise<Response> {
+    async moveBlockTo(blockId: string, where: 'before' | 'after', dstBlockId: string): Promise<Response> {
         return fetch(`${this.getBaseURL()}/api/v2/content-blocks/${blockId}/moveto/${where}/${dstBlockId}`, {
             method: 'POST',
             headers: this.headers(),
@@ -1082,6 +1088,59 @@ class OctoClient {
             method: 'PUT',
             headers: this.headers(),
         })
+    }
+
+    // ******************
+    // *    Telegram    *
+    // ******************
+
+    async getTelegramPreferences(): Promise<TelegramPreferencesResponse | undefined> {
+        const response = await fetch('/api/v2/telegram/preferences', {
+            method: 'GET',
+            headers: this.headers(),
+        })
+        if (response.status !== 200) {
+            return undefined
+        }
+
+        return (await this.getJson(response, {})) as TelegramPreferencesResponse
+    }
+
+    async updateTelegramPreferences(body: UpdateTelegramPreferencesRequest): Promise<UpdateTelegramPreferencesResponse | undefined> {
+        const response = await fetch('/api/v2/telegram/preferences', {
+            method: 'PUT',
+            headers: this.headers(),
+            body: JSON.stringify(body),
+        })
+        if (response.status !== 200) {
+            return undefined
+        }
+
+        return (await this.getJson(response, {})) as UpdateTelegramPreferencesResponse
+    }
+
+    async linkTelegram(): Promise<TelegramLinkResponse | undefined> {
+        const response = await fetch('/api/v2/telegram/link', {
+            method: 'POST',
+            headers: this.headers(),
+        })
+        if (response.status !== 200) {
+            return undefined
+        }
+
+        return (await this.getJson(response, {})) as TelegramLinkResponse
+    }
+
+    async unlinkTelegram(): Promise<TelegramUnlinkResponse | undefined> {
+        const response = await fetch('/api/v2/telegram/unlink', {
+            method: 'POST',
+            headers: this.headers(),
+        })
+        if (response.status !== 200) {
+            return undefined
+        }
+
+        return (await this.getJson(response, {})) as TelegramUnlinkResponse
     }
 }
 

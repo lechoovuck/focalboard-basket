@@ -23,9 +23,9 @@
 	"audit_cfg_file": "",
 	"enablePublicSharedBoards": false,
 	"telegram": {
-        "enabled": true,
-        "bot_token": "7009174900:AAGhGWXnhaqFQOGJ3GprACyTvCE7LIk2zGw",
-        "bot_username": "@basketdev_notifications_bot",
+        "enabled": false,
+        "bot_token": "YOUR_TELEGRAM_BOT_TOKEN_HERE",
+        "bot_username": "@your_bot_username",
         "bot_webhook_url": "http://localhost:8001/send-notification"
     }
 }

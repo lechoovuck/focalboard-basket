@@ -1,11 +1,15 @@
 package app
 
+// ...existing code...
+// Place UpsertTelegramNotificationPreferences and boolToInt after the App struct
+
 import (
 	"io"
 	"sync"
 	"time"
 
 	"github.com/mattermost/focalboard/server/auth"
+	"github.com/mattermost/focalboard/server/model"
 	"github.com/mattermost/focalboard/server/services/config"
 	"github.com/mattermost/focalboard/server/services/metrics"
 	"github.com/mattermost/focalboard/server/services/notify"
@@ -70,6 +74,15 @@ type App struct {
 
 	cardLimitMux sync.RWMutex
 	cardLimit    int
+
+	// in‑memory storage for temporary Telegram verification codes
+	telegramVerificationMux   sync.RWMutex
+	telegramVerificationCodes map[string]telegramVerification
+}
+
+// UpsertTelegramNotificationPreferences inserts or updates notification preferences for a user
+func (a *App) UpsertTelegramNotificationPreferences(userID string, prefs map[string]bool) error {
+	return a.store.UpsertTelegramNotificationPreferences(userID, prefs)
 }
 
 func (a *App) SetConfig(config *config.Configuration) {
@@ -82,21 +95,32 @@ func (a *App) GetConfig() *config.Configuration {
 
 func New(config *config.Configuration, wsAdapter ws.Adapter, services Services) *App {
 	app := &App{
-		config:              config,
-		store:               services.Store,
-		auth:                services.Auth,
-		wsAdapter:           wsAdapter,
-		filesBackend:        services.FilesBackend,
-		webhook:             services.Webhook,
-		metrics:             services.Metrics,
-		notifications:       services.Notifications,
-		logger:              services.Logger,
-		permissions:         services.Permissions,
-		blockChangeNotifier: utils.NewCallbackQueue("blockChangeNotifier", blockChangeNotifierQueueSize, blockChangeNotifierPoolSize, services.Logger),
-		servicesAPI:         services.ServicesAPI,
+		config:                    config,
+		store:                     services.Store,
+		auth:                      services.Auth,
+		wsAdapter:                 wsAdapter,
+		filesBackend:              services.FilesBackend,
+		webhook:                   services.Webhook,
+		metrics:                   services.Metrics,
+		notifications:             services.Notifications,
+		logger:                    services.Logger,
+		permissions:               services.Permissions,
+		blockChangeNotifier:       utils.NewCallbackQueue("blockChangeNotifier", blockChangeNotifierQueueSize, blockChangeNotifierPoolSize, services.Logger),
+		servicesAPI:               services.ServicesAPI,
+		telegramVerificationCodes: make(map[string]telegramVerification),
 	}
 	app.initialize(services.SkipTemplateInit)
 	return app
+}
+
+// GetUserByID returns the user by ID, including Telegram fields
+func (a *App) GetUserByID(userID string) (*model.User, error) {
+	return a.store.GetUserByID(userID)
+}
+
+// GetTelegramNotificationPreferences fetches Telegram notification preferences for a user
+func (a *App) GetTelegramNotificationPreferences(userID string) (map[string]bool, error) {
+	return a.store.GetTelegramNotificationPreferences(userID)
 }
 
 func (a *App) CardLimit() int {

@@ -1,0 +1,16 @@
+# /etc/systemd/system/focalboard-telegram-bot.service
+[Unit]
+Description=Focalboard Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=focalboard
+WorkingDirectory=/opt/focalboard/scripts/telegram-bot
+Environment="TELEGRAM_BOT_TOKEN=7009174900:AAGhGWXnhaqFQOGJ3GprACyTvCE7LIk2zGw"
+Environment="FOCALBOARD_API_URL=http://localhost:8000"
+ExecStart=/usr/bin/python3 /opt/focalboard/scripts/telegram-bot/bot.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

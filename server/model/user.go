@@ -15,6 +15,10 @@ const (
 // User is a user
 // swagger:model
 type User struct {
+	// Telegram chat ID (if linked)
+	TelegramChatID string `json:"telegram_chat_id"`
+	// Telegram notifications enabled (0/1)
+	TelegramNotificationsEnabled int `json:"telegram_notifications_enabled"`
 	// The user ID
 	// required: true
 	ID string `json:"id"`

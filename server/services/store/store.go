@@ -68,6 +68,8 @@ type Store interface {
 	SearchUsersByTeam(teamID string, searchQuery string, asGuestID string, excludeBots bool, showEmail, showName bool) ([]*model.User, error)
 	PatchUserPreferences(userID string, patch model.UserPreferencesPatch) (mmModel.Preferences, error)
 	GetUserPreferences(userID string) (mmModel.Preferences, error)
+	GetTelegramNotificationPreferences(userID string) (map[string]bool, error)
+	UpsertTelegramNotificationPreferences(userID string, prefs map[string]bool) error
 
 	GetActiveUserCount(updatedSecondsAgo int64) (int, error)
 	GetSession(token string, expireTime int64) (*model.Session, error)

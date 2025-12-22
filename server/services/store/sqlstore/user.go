@@ -241,6 +241,7 @@ func (s *SQLStore) usersFromRows(rows *sql.Rows) ([]*model.User, error) {
 
 	for rows.Next() {
 		var user model.User
+		var telegramChatID sql.NullString
 
 		err := rows.Scan(
 			&user.ID,
@@ -253,11 +254,15 @@ func (s *SQLStore) usersFromRows(rows *sql.Rows) ([]*model.User, error) {
 			&user.CreateAt,
 			&user.UpdateAt,
 			&user.DeleteAt,
-			&user.TelegramChatID,
+			&telegramChatID,
 			&user.TelegramNotificationsEnabled,
 		)
 		if err != nil {
 			return nil, err
+		}
+
+		if telegramChatID.Valid {
+			user.TelegramChatID = telegramChatID.String
 		}
 
 		users = append(users, &user)

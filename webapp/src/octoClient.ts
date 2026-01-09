@@ -1142,6 +1142,35 @@ class OctoClient {
 
         return (await this.getJson(response, {})) as TelegramUnlinkResponse
     }
+
+    // Mark a card as being edited by the current user
+    // This suppresses real-time notifications while the user is editing
+    async markCardEditing(cardId: string): Promise<void> {
+        const path = `/api/v2/cards/${encodeURIComponent(cardId)}/editing`
+        try {
+            await fetch(this.getBaseURL() + path, {
+                method: 'POST',
+                headers: this.headers(),
+            })
+        } catch (e) {
+            Utils.log(`markCardEditing error: ${e}`)
+        }
+    }
+
+    // Notify server that user has closed/navigated away from a card
+    // This triggers deferred notifications to assigned/mentioned users
+    // isNew: true if this is a newly created card, false if existing card being edited
+    async notifyCardClosed(cardId: string, isNew: boolean): Promise<void> {
+        const path = `/api/v2/cards/${encodeURIComponent(cardId)}/notify?is_new=${isNew}`
+        try {
+            await fetch(this.getBaseURL() + path, {
+                method: 'POST',
+                headers: this.headers(),
+            })
+        } catch (e) {
+            Utils.log(`notifyCardClosed error: ${e}`)
+        }
+    }
 }
 
 const octoClient = new OctoClient()

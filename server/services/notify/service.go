@@ -38,6 +38,11 @@ type Backend interface {
 	Name() string
 }
 
+// CardClosedNotifier is an optional interface for backends that support card closed notifications
+type CardClosedNotifier interface {
+	SendCardClosedNotification(card *model.Block, board *model.Board, user *model.User, isNew bool, cardURL string) error
+}
+
 // Service is a service that sends notifications based on block activity using one or more backends.
 type Service struct {
 	mux      sync.RWMutex
@@ -105,4 +110,25 @@ func (s *Service) BlockChanged(evt BlockChangeEvent) {
 			)
 		}
 	}
+}
+
+// SendCardClosedNotification sends a notification when a user closes a card they were editing.
+// Only backends that implement CardClosedNotifier will be called.
+// isNew indicates whether this is a newly created card (send "created" notification) or existing card (send "updated" notification)
+func (s *Service) SendCardClosedNotification(card *model.Block, board *model.Board, user *model.User, isNew bool, cardURL string) error {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+
+	for _, backend := range s.backends {
+		if notifier, ok := backend.(CardClosedNotifier); ok {
+			if err := notifier.SendCardClosedNotification(card, board, user, isNew, cardURL); err != nil {
+				s.logger.Error("Error sending card closed notification",
+					mlog.String("backend", backend.Name()),
+					mlog.String("card_id", card.ID),
+					mlog.Err(err),
+				)
+			}
+		}
+	}
+	return nil
 }

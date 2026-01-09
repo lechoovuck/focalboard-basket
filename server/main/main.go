@@ -144,7 +144,7 @@ func main() {
 
 	// Initialize Telegram backend if enabled
 	if config.Telegram.Enabled && config.Telegram.BotWebhookURL != "" {
-		telegramBackend := notify.NewTelegramBackend(config.Telegram.BotWebhookURL, db, logger)
+		telegramBackend := notify.NewTelegramBackend(config.Telegram.BotWebhookURL, db, logger, config.ServerRoot)
 		notifyBackends = append(notifyBackends, telegramBackend)
 
 		// Add mentions backend for Telegram

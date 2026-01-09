@@ -16,7 +16,7 @@ import {CardFilter} from '../cardFilter'
 import mutator from '../mutator'
 import {Utils} from '../utils'
 import {UserSettings} from '../userSettings'
-import {getCurrentCard, addCard as addCardAction, addTemplate as addTemplateAction, showCardHiddenWarning} from '../store/cards'
+import {getCurrentCard, addCard as addCardAction, addTemplate as addTemplateAction, showCardHiddenWarning, markCardAsNew} from '../store/cards'
 import {getCardLimitTimestamp} from '../store/limits'
 import {updateView} from '../store/views'
 import {getVisibleAndHiddenGroups} from '../boardUtils'
@@ -198,6 +198,8 @@ const CenterPanel = (props: Props) => {
                 card,
                 'add card',
                 async (block: Block) => {
+                    // Mark card as newly created for notification purposes
+                    dispatch(markCardAsNew(block.id))
                     if (show) {
                         dispatch(addCardAction(createCard(block)))
                         dispatch(updateView({...activeView, fields: {...activeView.fields, cardOrder: [...activeView.fields.cardOrder, block.id]}}))

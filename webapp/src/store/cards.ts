@@ -29,6 +29,7 @@ type CardsState = {
     cards: {[key: string]: Card}
     templates: {[key: string]: Card}
     cardHiddenWarning: boolean
+    newlyCreatedCards: {[key: string]: boolean}  // Track cards created in this session
 }
 
 export const refreshCards = createAsyncThunk<Block[], number, {state: RootState}>(
@@ -74,10 +75,17 @@ const cardsSlice = createSlice({
         cards: {},
         templates: {},
         cardHiddenWarning: false,
+        newlyCreatedCards: {},
     } as CardsState,
     reducers: {
         setCurrent: (state, action: PayloadAction<string>) => {
             state.current = action.payload
+        },
+        markCardAsNew: (state, action: PayloadAction<string>) => {
+            state.newlyCreatedCards[action.payload] = true
+        },
+        clearNewCardFlag: (state, action: PayloadAction<string>) => {
+            delete state.newlyCreatedCards[action.payload]
         },
         setLimitTimestamp: (state, action: PayloadAction<{timestamp: number, templates: {[key: string]: Board}}>) => {
             state.limitTimestamp = action.payload.timestamp
@@ -141,7 +149,7 @@ const cardsSlice = createSlice({
     },
 })
 
-export const {updateCards, addCard, addTemplate, setCurrent, setLimitTimestamp, showCardHiddenWarning} = cardsSlice.actions
+export const {updateCards, addCard, addTemplate, setCurrent, setLimitTimestamp, showCardHiddenWarning, markCardAsNew, clearNewCardFlag} = cardsSlice.actions
 export const {reducer} = cardsSlice
 
 export const getCards = (state: RootState): {[key: string]: Card} => state.cards.cards
@@ -410,3 +418,4 @@ export const getCurrentCard = createSelector(
 
 export const getCardLimitTimestamp = (state: RootState): number => state.cards.limitTimestamp
 export const getCardHiddenWarning = (state: RootState): boolean => state.cards.cardHiddenWarning
+export const isCardNew = (cardId: string) => (state: RootState): boolean => Boolean(state.cards.newlyCreatedCards[cardId])

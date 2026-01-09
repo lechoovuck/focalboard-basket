@@ -44,6 +44,7 @@ describe('src/components/gallery/Gallery', () => {
             },
             templates: {},
             cardHiddenWarning: true,
+            newlyCreatedCards: {},
         },
         teams: {
             current: {id: 'team-id'},
@@ -202,6 +203,7 @@ describe('src/components/gallery/Gallery', () => {
                 templates: {},
                 cardHiddenWarning: true,
                 limitTimestamp: 2,
+                newlyCreatedCards: {},
             },
             users: {
                 me: {

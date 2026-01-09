@@ -306,6 +306,223 @@ func (a *App) GetBlocksForBoard(boardID string) ([]*model.Block, error) {
 	return a.store.GetBlocksForBoard(boardID)
 }
 
+func (a *App) MarkCardBeingEdited(cardID string, userID string) {
+	a.cardsBeingEditedMux.Lock()
+	defer a.cardsBeingEditedMux.Unlock()
+	a.cardsBeingEdited[cardID] = userID
+	a.logger.Debug("Card marked as being edited",
+		mlog.String("card_id", cardID),
+		mlog.String("user_id", userID))
+}
+
+func (a *App) UnmarkCardBeingEdited(cardID string) {
+	a.cardsBeingEditedMux.Lock()
+	defer a.cardsBeingEditedMux.Unlock()
+	delete(a.cardsBeingEdited, cardID)
+	a.logger.Debug("Card unmarked as being edited",
+		mlog.String("card_id", cardID))
+}
+
+func (a *App) IsCardBeingEdited(cardID string) bool {
+	a.cardsBeingEditedMux.RLock()
+	defer a.cardsBeingEditedMux.RUnlock()
+	_, exists := a.cardsBeingEdited[cardID]
+	return exists
+}
+
+func (a *App) accumulateCardChange(card *model.Block, block *model.Block, oldBlock *model.Block, board *model.Board) {
+	a.cardChangesMux.Lock()
+	defer a.cardChangesMux.Unlock()
+
+	changes, exists := a.cardChanges[card.ID]
+	if !exists {
+		changes = &CardChanges{
+			PropertyChanges: []PropertyChange{},
+		}
+		a.cardChanges[card.ID] = changes
+	}
+
+	if block.ID == card.ID && oldBlock != nil {
+		if block.Title != oldBlock.Title && !changes.TitleChanged {
+			changes.TitleChanged = true
+			changes.OldTitle = oldBlock.Title
+			changes.NewTitle = block.Title
+		} else if changes.TitleChanged {
+			changes.NewTitle = block.Title
+		}
+
+		a.detectPropertyChanges(changes, block, oldBlock, board)
+	} else {
+		changes.ContentChanges++
+	}
+}
+
+func (a *App) detectPropertyChanges(changes *CardChanges, block *model.Block, oldBlock *model.Block, board *model.Board) {
+	oldProps, oldOk := oldBlock.Fields["properties"].(map[string]interface{})
+	newProps, newOk := block.Fields["properties"].(map[string]interface{})
+
+	if !oldOk || !newOk {
+		return
+	}
+
+	propNames := make(map[string]string)
+	propOptions := make(map[string]map[string]interface{})
+	if board != nil {
+		for _, prop := range board.CardProperties {
+			if propID, ok := prop["id"].(string); ok {
+				if propName, ok := prop["name"].(string); ok {
+					propNames[propID] = propName
+				}
+				propOptions[propID] = prop
+			}
+		}
+	}
+
+	for propKey, newValue := range newProps {
+		oldValue := oldProps[propKey]
+		newStr := getPropertyDisplayValue(newValue, propOptions[propKey])
+		oldStr := getPropertyDisplayValue(oldValue, propOptions[propKey])
+
+		if newStr != oldStr {
+			propName := propNames[propKey]
+			if propName == "" {
+				propName = propKey
+			}
+
+			found := false
+			for i, pc := range changes.PropertyChanges {
+				if pc.PropertyName == propName {
+					changes.PropertyChanges[i].NewValue = newStr
+					found = true
+					break
+				}
+			}
+			if !found {
+				changes.PropertyChanges = append(changes.PropertyChanges, PropertyChange{
+					PropertyName: propName,
+					OldValue:     oldStr,
+					NewValue:     newStr,
+				})
+			}
+		}
+	}
+}
+
+func getPropertyDisplayValue(value interface{}, propDef map[string]interface{}) string {
+	if value == nil {
+		return ""
+	}
+
+	if strVal, ok := value.(string); ok {
+		if strVal == "" {
+			return ""
+		}
+		if propDef != nil {
+			if options, ok := propDef["options"].([]interface{}); ok {
+				for _, opt := range options {
+					if optMap, ok := opt.(map[string]interface{}); ok {
+						if id, idOk := optMap["id"].(string); idOk && id == strVal {
+							if optValue, valueOk := optMap["value"].(string); valueOk {
+								return optValue
+							}
+						}
+					}
+				}
+			}
+		}
+		return strVal
+	}
+
+	if arrVal, ok := value.([]interface{}); ok {
+		var values []string
+		for _, item := range arrVal {
+			if strItem, ok := item.(string); ok {
+				displayVal := strItem
+				if propDef != nil {
+					if options, ok := propDef["options"].([]interface{}); ok {
+						for _, opt := range options {
+							if optMap, ok := opt.(map[string]interface{}); ok {
+								if id, idOk := optMap["id"].(string); idOk && id == strItem {
+									if optValue, valueOk := optMap["value"].(string); valueOk {
+										displayVal = optValue
+										break
+									}
+								}
+							}
+						}
+					}
+				}
+				values = append(values, displayVal)
+			}
+		}
+		if len(values) > 0 {
+			return fmt.Sprintf("%v", values)
+		}
+	}
+
+	return fmt.Sprintf("%v", value)
+}
+
+func (a *App) GetCardChanges(cardID string) *CardChanges {
+	a.cardChangesMux.Lock()
+	defer a.cardChangesMux.Unlock()
+
+	changes, exists := a.cardChanges[cardID]
+	if exists {
+		delete(a.cardChanges, cardID)
+		return changes
+	}
+	return nil
+}
+
+func (a *App) ClearCardChanges(cardID string) {
+	a.cardChangesMux.Lock()
+	defer a.cardChangesMux.Unlock()
+	delete(a.cardChanges, cardID)
+}
+
+func (a *App) SendCardClosedNotification(cardID string, userID string, isNew bool) error {
+	a.UnmarkCardBeingEdited(cardID)
+
+	if a.notifications == nil {
+		return nil
+	}
+
+	card, err := a.store.GetBlock(cardID)
+	if err != nil {
+		return err
+	}
+
+	board, err := a.store.GetBoard(card.BoardID)
+	if err != nil {
+		return err
+	}
+
+	user, err := a.store.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+
+	cardURL := a.buildCardURL(board, cardID)
+
+	return a.notifications.SendCardClosedNotification(card, board, user, isNew, cardURL)
+}
+
+func (a *App) buildCardURL(board *model.Board, cardID string) string {
+	serverRoot := a.config.ServerRoot
+	if serverRoot == "" {
+		return ""
+	}
+
+	viewID := ""
+	views, err := a.store.GetBlocksWithType(board.ID, "view")
+	if err == nil && len(views) > 0 {
+		viewID = views[0].ID
+	}
+
+	return fmt.Sprintf("%s/%s/%s/%s", serverRoot, board.ID, viewID, cardID)
+}
+
 func (a *App) notifyBlockChanged(action notify.Action, block *model.Block, oldBlock *model.Block, modifiedByID string) {
 	// don't notify if notifications service disabled, or block change is generated via system user.
 	if a.notifications == nil || modifiedByID == model.SystemUserID {
@@ -316,6 +533,14 @@ func (a *App) notifyBlockChanged(action notify.Action, block *model.Block, oldBl
 	board, card, err := a.getBoardAndCard(block)
 	if err != nil {
 		a.logger.Error("Error notifying for block change; cannot determine board or card", mlog.Err(err))
+		return
+	}
+
+	if card != nil && a.IsCardBeingEdited(card.ID) {
+		a.logger.Debug("Accumulating change - card is being edited",
+			mlog.String("card_id", card.ID),
+			mlog.String("action", string(action)))
+		a.accumulateCardChange(card, block, oldBlock, board)
 		return
 	}
 

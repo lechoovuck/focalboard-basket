@@ -78,6 +78,31 @@ type App struct {
 	// in‑memory storage for temporary Telegram verification codes
 	telegramVerificationMux   sync.RWMutex
 	telegramVerificationCodes map[string]telegramVerification
+
+	// Track cards currently being edited (cardID -> userID)
+	// Used to suppress real-time notifications while user is editing
+	cardsBeingEditedMux sync.RWMutex
+	cardsBeingEdited    map[string]string
+
+	// Track accumulated changes for cards being edited (cardID -> changes)
+	cardChangesMux sync.RWMutex
+	cardChanges    map[string]*CardChanges
+}
+
+// CardChanges tracks accumulated changes made to a card while it's being edited
+type CardChanges struct {
+	TitleChanged    bool
+	OldTitle        string
+	NewTitle        string
+	PropertyChanges []PropertyChange
+	ContentChanges  int // Number of content block changes
+}
+
+// PropertyChange represents a change to a card property
+type PropertyChange struct {
+	PropertyName string
+	OldValue     string
+	NewValue     string
 }
 
 // UpsertTelegramNotificationPreferences inserts or updates notification preferences for a user
@@ -108,6 +133,8 @@ func New(config *config.Configuration, wsAdapter ws.Adapter, services Services) 
 		blockChangeNotifier:       utils.NewCallbackQueue("blockChangeNotifier", blockChangeNotifierQueueSize, blockChangeNotifierPoolSize, services.Logger),
 		servicesAPI:               services.ServicesAPI,
 		telegramVerificationCodes: make(map[string]telegramVerification),
+		cardsBeingEdited:          make(map[string]string),
+		cardChanges:               make(map[string]*CardChanges),
 	}
 	app.initialize(services.SkipTemplateInit)
 	return app

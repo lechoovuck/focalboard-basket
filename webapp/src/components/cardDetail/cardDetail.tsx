@@ -23,7 +23,7 @@ import TelemetryClient, {TelemetryActions, TelemetryCategory} from '../../teleme
 import BlockIconSelector from '../blockIconSelector'
 
 import {useAppDispatch, useAppSelector} from '../../store/hooks'
-import {updateCards, setCurrent as setCurrentCard} from '../../store/cards'
+import {updateCards, setCurrent as setCurrentCard, isCardNew, clearNewCardFlag} from '../../store/cards'
 import {updateContents} from '../../store/contents'
 import {Permission} from '../../constants'
 import {useHasCurrentBoardPermissions} from '../../hooks/permissions'
@@ -115,9 +115,15 @@ const CardDetail = (props: Props): JSX.Element|null => {
     const saveTitleRef = useRef<() => void>(saveTitle)
     saveTitleRef.current = saveTitle
     const intl = useIntl()
+    const dispatch = useAppDispatch()
 
     const clientConfig = useAppSelector<ClientConfig>(getClientConfig)
     const newBoardsEditor = clientConfig?.featureFlags?.newBoardsEditor || false
+    const cardIsNew = useAppSelector(isCardNew(card?.id || ''))
+
+    // Store cardIsNew in a ref so it can be accessed in cleanup without adding to deps
+    const cardIsNewRef = useRef(cardIsNew)
+    cardIsNewRef.current = cardIsNew
 
     useImagePaste(props.board.id, card.id, card.fields.contentOrder)
 
@@ -126,6 +132,11 @@ const CardDetail = (props: Props): JSX.Element|null => {
             setTimeout(() => titleRef.current?.focus(), 300)
         }
         TelemetryClient.trackEvent(TelemetryCategory, TelemetryActions.ViewCard, {board: props.board.id, view: props.activeView.id, card: card.id})
+
+        // Mark card as being edited to suppress notifications while user is editing
+        if (card?.id) {
+            octoClient.markCardEditing(card.id)
+        }
     }, [])
 
     useEffect(() => {
@@ -138,15 +149,25 @@ const CardDetail = (props: Props): JSX.Element|null => {
     useEffect(() => {
         return () => {
             saveTitleRef.current && saveTitleRef.current()
+
+            // Notify server that user has closed the card - triggers deferred notifications
+            // Pass isNew flag to distinguish between card creation and card update
+            if (card?.id) {
+                octoClient.notifyCardClosed(card.id, cardIsNewRef.current)
+
+                // Clear the new card flag after notification is sent
+                if (cardIsNewRef.current) {
+                    dispatch(clearNewCardFlag(card.id))
+                }
+            }
         }
-    }, [])
+    }, [card?.id, dispatch])
 
     const setRandomIcon = useCallback(() => {
         const newIcon = BlockIcons.shared.randomIcon()
         mutator.changeBlockIcon(props.board.id, card.id, card.fields.icon, newIcon)
     }, [card.id, card.fields.icon])
 
-    const dispatch = useAppDispatch()
     useEffect(() => {
         dispatch(setCurrentCard(card.id))
     }, [card.id])

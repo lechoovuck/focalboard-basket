@@ -25,6 +25,8 @@ func (a *API) registerCardsRoutes(r *mux.Router) {
 	r.HandleFunc("/boards/{boardID}/cards", a.sessionRequired(a.handleGetCards)).Methods("GET")
 	r.HandleFunc("/cards/{cardID}", a.sessionRequired(a.handlePatchCard)).Methods("PATCH")
 	r.HandleFunc("/cards/{cardID}", a.sessionRequired(a.handleGetCard)).Methods("GET")
+	r.HandleFunc("/cards/{cardID}/notify", a.sessionRequired(a.handleCardClosed)).Methods("POST")
+	r.HandleFunc("/cards/{cardID}/editing", a.sessionRequired(a.handleMarkCardEditing)).Methods("POST")
 }
 
 func (a *API) handleCreateCard(w http.ResponseWriter, r *http.Request) {
@@ -386,4 +388,60 @@ func (a *API) handleGetCard(w http.ResponseWriter, r *http.Request) {
 	jsonBytesResponse(w, http.StatusOK, data)
 
 	auditRec.Success()
+}
+
+func (a *API) handleCardClosed(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	cardID := mux.Vars(r)["cardID"]
+	isNew := r.URL.Query().Get("is_new") == "true"
+
+	a.app.UnmarkCardBeingEdited(cardID)
+
+	card, err := a.app.GetCardByID(cardID)
+	if err != nil {
+		jsonStringResponse(w, http.StatusOK, "{}")
+		return
+	}
+
+	if !a.permissions.HasPermissionToBoard(userID, card.BoardID, model.PermissionViewBoard) {
+		a.errorResponse(w, r, model.NewErrPermission("access denied"))
+		return
+	}
+
+	a.logger.Debug("Card closed - sending notification",
+		mlog.String("cardID", cardID),
+		mlog.String("userID", userID),
+		mlog.Bool("isNew", isNew),
+	)
+
+	if err := a.app.SendCardClosedNotification(cardID, userID, isNew); err != nil {
+		a.logger.Warn("Failed to send card closed notification",
+			mlog.String("cardID", cardID),
+			mlog.Err(err),
+		)
+	}
+
+	jsonStringResponse(w, http.StatusOK, "{}")
+}
+
+func (a *API) handleMarkCardEditing(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	cardID := mux.Vars(r)["cardID"]
+
+	card, err := a.app.GetCardByID(cardID)
+	if err == nil && card != nil {
+		if !a.permissions.HasPermissionToBoard(userID, card.BoardID, model.PermissionViewBoard) {
+			a.errorResponse(w, r, model.NewErrPermission("access denied"))
+			return
+		}
+	}
+
+	a.logger.Debug("Marking card as being edited",
+		mlog.String("cardID", cardID),
+		mlog.String("userID", userID),
+	)
+
+	a.app.MarkCardBeingEdited(cardID, userID)
+
+	jsonStringResponse(w, http.StatusOK, "{}")
 }

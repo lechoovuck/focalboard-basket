@@ -52,12 +52,20 @@ func (t *TelegramService) SendMessage(chatID, message string) error {
 }
 
 func (t *TelegramService) FormatCardNotification(cardTitle, boardTitle, userName, action string) string {
+	return t.FormatCardNotificationWithURL(cardTitle, boardTitle, userName, action, "")
+}
+
+func (t *TelegramService) FormatCardNotificationWithURL(cardTitle, boardTitle, userName, action, cardURL string) string {
+	cardDisplay := fmt.Sprintf("*%s*", cardTitle)
+	if cardURL != "" {
+		cardDisplay = fmt.Sprintf("[%s](%s)", cardTitle, cardURL)
+	}
 	return fmt.Sprintf(
 		"🔔 *Focalboard Update*\n\n"+
 			"*%s* %s a card:\n"+
-			"📝 *%s*\n"+
+			"📝 %s\n"+
 			"📋 Board: %s",
-		userName, action, cardTitle, boardTitle,
+		userName, action, cardDisplay, boardTitle,
 	)
 }
 
@@ -82,29 +90,46 @@ func (t *TelegramService) FormatAssignmentNotification(cardTitle, boardTitle, us
 }
 
 func (t *TelegramService) FormatStatusChangeNotification(cardTitle, boardTitle, userName, oldStatus, newStatus string) string {
+	return t.FormatStatusChangeNotificationWithURL(cardTitle, boardTitle, userName, oldStatus, newStatus, "")
+}
+
+func (t *TelegramService) FormatStatusChangeNotificationWithURL(cardTitle, boardTitle, userName, oldStatus, newStatus, cardURL string) string {
+	cardDisplay := fmt.Sprintf("*%s*", cardTitle)
+	if cardURL != "" {
+		cardDisplay = fmt.Sprintf("[%s](%s)", cardTitle, cardURL)
+	}
 	return fmt.Sprintf(
 		"🔄 *Card Status Changed*\n\n"+
 			"*%s* moved:\n"+
-			"📝 *%s*\n"+
+			"📝 %s\n"+
 			"📋 Board: %s\n\n"+
 			"From: %s → To: %s",
-		userName, cardTitle, boardTitle, oldStatus, newStatus,
+		userName, cardDisplay, boardTitle, oldStatus, newStatus,
 	)
 }
 
 func (t *TelegramService) FormatCommentNotification(cardTitle, boardTitle, userName, commentText string) string {
+	return t.FormatCommentNotificationWithURL(cardTitle, boardTitle, userName, commentText, "")
+}
+
+func (t *TelegramService) FormatCommentNotificationWithURL(cardTitle, boardTitle, userName, commentText, cardURL string) string {
 	// Truncate comment if too long
 	const maxCommentLen = 200
 	if len(commentText) > maxCommentLen {
 		commentText = commentText[:maxCommentLen] + "..."
 	}
 
+	cardDisplay := fmt.Sprintf("*%s*", cardTitle)
+	if cardURL != "" {
+		cardDisplay = fmt.Sprintf("[%s](%s)", cardTitle, cardURL)
+	}
+
 	return fmt.Sprintf(
 		"💬 *New Comment*\n\n"+
 			"*%s* commented on:\n"+
-			"📝 *%s*\n"+
+			"📝 %s\n"+
 			"📋 Board: %s\n\n"+
 			"💭 %s",
-		userName, cardTitle, boardTitle, commentText,
+		userName, cardDisplay, boardTitle, commentText,
 	)
 }

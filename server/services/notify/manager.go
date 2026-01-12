@@ -289,12 +289,12 @@ func (nm *NotificationManager) sendTelegramNotificationWithURL(userID string, ca
 	var message string
 	switch action {
 	case "status_changed":
-		message = nm.telegram.FormatStatusChangeNotificationWithURL(cardTitle, board.Title, actor.Username, extra1, extra2, cardURL)
+		message = nm.telegram.FormatStatusChangeNotification(cardTitle, board.Title, actor.Username, extra1, extra2)
 	case "comment":
-		message = nm.telegram.FormatCommentNotificationWithURL(cardTitle, board.Title, actor.Username, extra1, cardURL)
+		message = nm.telegram.FormatCommentNotification(cardTitle, board.Title, actor.Username, extra1)
 	default:
-		message = nm.telegram.FormatCardNotificationWithURL(cardTitle, board.Title, actor.Username, action, cardURL)
+		message = nm.telegram.FormatCardNotification(cardTitle, board.Title, actor.Username, action)
 	}
 
-	return nm.telegram.SendMessage(targetUser.TelegramChatID, message)
+	return nm.telegram.SendMessageWithURL(targetUser.TelegramChatID, message, cardURL)
 }

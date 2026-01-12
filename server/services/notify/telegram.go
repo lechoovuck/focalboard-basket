@@ -17,6 +17,7 @@ type TelegramService struct {
 type TelegramWebhookPayload struct {
 	ChatID  string `json:"chat_id"`
 	Message string `json:"message"`
+	CardURL string `json:"card_url,omitempty"`
 }
 
 func NewTelegramService(botWebhookURL string) *TelegramService {
@@ -29,9 +30,14 @@ func NewTelegramService(botWebhookURL string) *TelegramService {
 }
 
 func (t *TelegramService) SendMessage(chatID, message string) error {
+	return t.SendMessageWithURL(chatID, message, "")
+}
+
+func (t *TelegramService) SendMessageWithURL(chatID, message, cardURL string) error {
 	payload := TelegramWebhookPayload{
 		ChatID:  chatID,
 		Message: message,
+		CardURL: cardURL,
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -53,25 +59,17 @@ func (t *TelegramService) SendMessage(chatID, message string) error {
 }
 
 func (t *TelegramService) FormatCardNotification(cardTitle, boardTitle, userName, action string) string {
-	return t.FormatCardNotificationWithURL(cardTitle, boardTitle, userName, action, "")
-}
-
-func (t *TelegramService) FormatCardNotificationWithURL(cardTitle, boardTitle, userName, action, cardURL string) string {
 	escapedTitle := html.EscapeString(cardTitle)
 	escapedBoard := html.EscapeString(boardTitle)
 	escapedUser := html.EscapeString(userName)
 	escapedAction := html.EscapeString(action)
 
-	cardDisplay := fmt.Sprintf("<b>%s</b>", escapedTitle)
-	if cardURL != "" {
-		cardDisplay = fmt.Sprintf("<a href=\"%s\">%s</a>", cardURL, escapedTitle)
-	}
 	return fmt.Sprintf(
 		"🔔 <b>Focalboard Update</b>\n\n"+
 			"<b>%s</b> %s a card:\n"+
-			"📝 %s\n"+
+			"📝 <b>%s</b>\n"+
 			"📋 Board: %s",
-		escapedUser, escapedAction, cardDisplay, escapedBoard,
+		escapedUser, escapedAction, escapedTitle, escapedBoard,
 	)
 }
 
@@ -104,35 +102,23 @@ func (t *TelegramService) FormatAssignmentNotification(cardTitle, boardTitle, us
 }
 
 func (t *TelegramService) FormatStatusChangeNotification(cardTitle, boardTitle, userName, oldStatus, newStatus string) string {
-	return t.FormatStatusChangeNotificationWithURL(cardTitle, boardTitle, userName, oldStatus, newStatus, "")
-}
-
-func (t *TelegramService) FormatStatusChangeNotificationWithURL(cardTitle, boardTitle, userName, oldStatus, newStatus, cardURL string) string {
 	escapedTitle := html.EscapeString(cardTitle)
 	escapedBoard := html.EscapeString(boardTitle)
 	escapedUser := html.EscapeString(userName)
 	escapedOldStatus := html.EscapeString(oldStatus)
 	escapedNewStatus := html.EscapeString(newStatus)
 
-	cardDisplay := fmt.Sprintf("<b>%s</b>", escapedTitle)
-	if cardURL != "" {
-		cardDisplay = fmt.Sprintf("<a href=\"%s\">%s</a>", cardURL, escapedTitle)
-	}
 	return fmt.Sprintf(
 		"🔄 <b>Card Status Changed</b>\n\n"+
 			"<b>%s</b> moved:\n"+
-			"📝 %s\n"+
+			"📝 <b>%s</b>\n"+
 			"📋 Board: %s\n\n"+
 			"From: %s → To: %s",
-		escapedUser, cardDisplay, escapedBoard, escapedOldStatus, escapedNewStatus,
+		escapedUser, escapedTitle, escapedBoard, escapedOldStatus, escapedNewStatus,
 	)
 }
 
 func (t *TelegramService) FormatCommentNotification(cardTitle, boardTitle, userName, commentText string) string {
-	return t.FormatCommentNotificationWithURL(cardTitle, boardTitle, userName, commentText, "")
-}
-
-func (t *TelegramService) FormatCommentNotificationWithURL(cardTitle, boardTitle, userName, commentText, cardURL string) string {
 	// Truncate comment if too long
 	const maxCommentLen = 200
 	if len(commentText) > maxCommentLen {
@@ -144,17 +130,12 @@ func (t *TelegramService) FormatCommentNotificationWithURL(cardTitle, boardTitle
 	escapedUser := html.EscapeString(userName)
 	escapedComment := html.EscapeString(commentText)
 
-	cardDisplay := fmt.Sprintf("<b>%s</b>", escapedTitle)
-	if cardURL != "" {
-		cardDisplay = fmt.Sprintf("<a href=\"%s\">%s</a>", cardURL, escapedTitle)
-	}
-
 	return fmt.Sprintf(
 		"💬 <b>New Comment</b>\n\n"+
 			"<b>%s</b> commented on:\n"+
-			"📝 %s\n"+
+			"📝 <b>%s</b>\n"+
 			"📋 Board: %s\n\n"+
 			"💭 %s",
-		escapedUser, cardDisplay, escapedBoard, escapedComment,
+		escapedUser, escapedTitle, escapedBoard, escapedComment,
 	)
 }

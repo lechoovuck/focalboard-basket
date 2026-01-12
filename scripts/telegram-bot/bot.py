@@ -1,6 +1,6 @@
 import os
 import requests
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from flask import Flask, request, jsonify
 import threading
@@ -99,13 +99,22 @@ def send_notification():
         data = request.json
         chat_id = data.get("chat_id")
         message = data.get("message")
+        card_url = data.get("card_url")
         if not chat_id or not message:
             return jsonify({"error": "Missing data"}), 400
+
+        reply_markup = None
+        if card_url:
+            keyboard = [[InlineKeyboardButton("View Card", url=card_url)]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Properly schedule on bot's loop
         future = asyncio.run_coroutine_threadsafe(
             bot_instance.bot.send_message(
-                chat_id=chat_id, text=message, parse_mode="HTML"
+                chat_id=chat_id,
+                text=message,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
             ),
             bot_loop,
         )

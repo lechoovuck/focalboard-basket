@@ -10,18 +10,35 @@ import (
 
 // TelegramMentionsBackend handles @mention notifications via Telegram
 type TelegramMentionsBackend struct {
-	telegram *TelegramService
-	store    NotificationStore
-	logger   mlog.LoggerIFace
+	telegram   *TelegramService
+	store      NotificationStore
+	logger     mlog.LoggerIFace
+	serverRoot string
 }
 
 // NewTelegramMentionsBackend creates a new Telegram mentions notification backend
-func NewTelegramMentionsBackend(telegramBotWebhookURL string, store NotificationStore, logger mlog.LoggerIFace) *TelegramMentionsBackend {
+func NewTelegramMentionsBackend(telegramBotWebhookURL string, store NotificationStore, logger mlog.LoggerIFace, serverRoot string) *TelegramMentionsBackend {
 	return &TelegramMentionsBackend{
-		telegram: NewTelegramService(telegramBotWebhookURL),
-		store:    store,
-		logger:   logger,
+		telegram:   NewTelegramService(telegramBotWebhookURL),
+		store:      store,
+		logger:     logger,
+		serverRoot: serverRoot,
 	}
+}
+
+// buildCardURL constructs a URL for a card
+func (tmb *TelegramMentionsBackend) buildCardURL(board *model.Board, cardID string) string {
+	if tmb.serverRoot == "" {
+		return ""
+	}
+
+	viewID := ""
+	views, err := tmb.store.GetBlocksWithType(board.ID, "view")
+	if err == nil && len(views) > 0 {
+		viewID = views[0].ID
+	}
+
+	return tmb.serverRoot + "/" + board.ID + "/" + viewID + "/" + cardID
 }
 
 // Name returns the name of this backend
@@ -139,9 +156,15 @@ func (tmb *TelegramMentionsBackend) BlockChanged(evt BlockChangeEvent) error {
 			actorUsername = mentioningUser.Username
 		}
 
+		// Build card URL
+		cardURL := ""
+		if evt.Board != nil && evt.Card != nil {
+			cardURL = tmb.buildCardURL(evt.Board, evt.Card.ID)
+		}
+
 		// Format and send the message
 		message := tmb.telegram.FormatMentionNotification(cardTitle, boardTitle, actorUsername)
-		if err := tmb.telegram.SendMessage(mentionedUser.TelegramChatID, message); err != nil {
+		if err := tmb.telegram.SendMessageWithURL(mentionedUser.TelegramChatID, message, cardURL); err != nil {
 			tmb.logger.Error("Failed to send Telegram mention notification",
 				mlog.String("mentioned_user_id", mentionedUser.ID),
 				mlog.String("mentioned_username", username),

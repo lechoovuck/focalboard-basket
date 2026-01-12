@@ -148,7 +148,7 @@ func main() {
 		notifyBackends = append(notifyBackends, telegramBackend)
 
 		// Add mentions backend for Telegram
-		mentionsBackend := notify.NewTelegramMentionsBackend(config.Telegram.BotWebhookURL, db, logger)
+		mentionsBackend := notify.NewTelegramMentionsBackend(config.Telegram.BotWebhookURL, db, logger, config.ServerRoot)
 		notifyBackends = append(notifyBackends, mentionsBackend)
 
 		logger.Info("Telegram notifications enabled",

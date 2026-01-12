@@ -343,10 +343,12 @@ func (tb *TelegramBackend) notifyUserAssigned(userID string, card *model.Block, 
 	boardTitle := board.Title
 	actorUsername := actor.Username
 
+	cardURL := tb.manager.buildCardURL(board, card.ID)
+
 	// Format the message
 	message := tb.manager.telegram.FormatAssignmentNotification(cardTitle, boardTitle, actorUsername)
 
-	if err := tb.manager.telegram.SendMessage(assignedUser.TelegramChatID, message); err != nil {
+	if err := tb.manager.telegram.SendMessageWithURL(assignedUser.TelegramChatID, message, cardURL); err != nil {
 		tb.logger.Error("Failed to send Telegram assignment notification",
 			mlog.String("assigned_user_id", userID),
 			mlog.String("card_id", card.ID),
@@ -425,9 +427,15 @@ func (tb *TelegramBackend) OnMention(mentionedUserID string, evt BlockChangeEven
 		username = mentioningUser.Username
 	}
 
+	// Build card URL
+	cardURL := ""
+	if evt.Board != nil && evt.Card != nil {
+		cardURL = tb.manager.buildCardURL(evt.Board, evt.Card.ID)
+	}
+
 	// Format and send the message
 	message := tb.manager.telegram.FormatMentionNotification(cardTitle, boardTitle, username)
-	if err := tb.manager.telegram.SendMessage(mentionedUser.TelegramChatID, message); err != nil {
+	if err := tb.manager.telegram.SendMessageWithURL(mentionedUser.TelegramChatID, message, cardURL); err != nil {
 		tb.logger.Error("Failed to send Telegram mention notification",
 			mlog.String("mentioned_user_id", mentionedUserID),
 			mlog.String("card_id", evt.Card.ID),

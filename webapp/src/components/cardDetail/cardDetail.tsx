@@ -104,6 +104,9 @@ const CardDetail = (props: Props): JSX.Element|null => {
     const [title, setTitle] = useState(card.title)
     const [serverTitle, setServerTitle] = useState(card.title)
     const titleRef = useRef<Focusable>(null)
+    const initialUpdateAtRef = useRef(card.updateAt)
+    const cardRef = useRef(card)
+    cardRef.current = card
     const saveTitle = useCallback(() => {
         if (title !== card.title) {
             mutator.changeBlockTitle(props.board.id, card.id, card.title, title)
@@ -151,9 +154,9 @@ const CardDetail = (props: Props): JSX.Element|null => {
             saveTitleRef.current && saveTitleRef.current()
 
             // Notify server that user has closed the card - triggers deferred notifications
-            // Pass isNew flag to distinguish between card creation and card update
             if (card?.id) {
-                octoClient.notifyCardClosed(card.id, cardIsNewRef.current)
+                const hasChanges = cardRef.current.updateAt !== initialUpdateAtRef.current
+                octoClient.notifyCardClosed(card.id, cardIsNewRef.current, hasChanges)
 
                 // Clear the new card flag after notification is sent
                 if (cardIsNewRef.current) {

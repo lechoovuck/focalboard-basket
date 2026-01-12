@@ -1160,8 +1160,9 @@ class OctoClient {
     // Notify server that user has closed/navigated away from a card
     // This triggers deferred notifications to assigned/mentioned users
     // isNew: true if this is a newly created card, false if existing card being edited
-    async notifyCardClosed(cardId: string, isNew: boolean): Promise<void> {
-        const path = `/api/v2/cards/${encodeURIComponent(cardId)}/notify?is_new=${isNew}`
+    // hasChanges: true if the card was modified during this editing session
+    async notifyCardClosed(cardId: string, isNew: boolean, hasChanges: boolean): Promise<void> {
+        const path = `/api/v2/cards/${encodeURIComponent(cardId)}/notify?is_new=${isNew}&has_changes=${hasChanges}`
         try {
             await fetch(this.getBaseURL() + path, {
                 method: 'POST',

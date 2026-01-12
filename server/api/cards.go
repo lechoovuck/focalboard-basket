@@ -394,8 +394,18 @@ func (a *API) handleCardClosed(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 	cardID := mux.Vars(r)["cardID"]
 	isNew := r.URL.Query().Get("is_new") == "true"
+	hasChanges := r.URL.Query().Get("has_changes") == "true"
 
 	a.app.UnmarkCardBeingEdited(cardID)
+
+	if !isNew && !hasChanges {
+		a.logger.Debug("Card closed without changes - skipping notification",
+			mlog.String("cardID", cardID),
+			mlog.String("userID", userID),
+		)
+		jsonStringResponse(w, http.StatusOK, "{}")
+		return
+	}
 
 	card, err := a.app.GetCardByID(cardID)
 	if err != nil {
@@ -412,6 +422,7 @@ func (a *API) handleCardClosed(w http.ResponseWriter, r *http.Request) {
 		mlog.String("cardID", cardID),
 		mlog.String("userID", userID),
 		mlog.Bool("isNew", isNew),
+		mlog.Bool("hasChanges", hasChanges),
 	)
 
 	if err := a.app.SendCardClosedNotification(cardID, userID, isNew); err != nil {

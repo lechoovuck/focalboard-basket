@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"time"
 )
@@ -56,36 +57,49 @@ func (t *TelegramService) FormatCardNotification(cardTitle, boardTitle, userName
 }
 
 func (t *TelegramService) FormatCardNotificationWithURL(cardTitle, boardTitle, userName, action, cardURL string) string {
-	cardDisplay := fmt.Sprintf("*%s*", cardTitle)
+	escapedTitle := html.EscapeString(cardTitle)
+	escapedBoard := html.EscapeString(boardTitle)
+	escapedUser := html.EscapeString(userName)
+	escapedAction := html.EscapeString(action)
+
+	cardDisplay := fmt.Sprintf("<b>%s</b>", escapedTitle)
 	if cardURL != "" {
-		cardDisplay = fmt.Sprintf("[%s](%s)", cardTitle, cardURL)
+		cardDisplay = fmt.Sprintf("<a href=\"%s\">%s</a>", cardURL, escapedTitle)
 	}
 	return fmt.Sprintf(
-		"🔔 *Focalboard Update*\n\n"+
-			"*%s* %s a card:\n"+
+		"🔔 <b>Focalboard Update</b>\n\n"+
+			"<b>%s</b> %s a card:\n"+
 			"📝 %s\n"+
 			"📋 Board: %s",
-		userName, action, cardDisplay, boardTitle,
+		escapedUser, escapedAction, cardDisplay, escapedBoard,
 	)
 }
 
 func (t *TelegramService) FormatMentionNotification(cardTitle, boardTitle, userName string) string {
+	escapedTitle := html.EscapeString(cardTitle)
+	escapedBoard := html.EscapeString(boardTitle)
+	escapedUser := html.EscapeString(userName)
+
 	return fmt.Sprintf(
-		"💬 *You were mentioned!*\n\n"+
-			"*%s* mentioned you in:\n"+
-			"📝 *%s*\n"+
+		"💬 <b>You were mentioned!</b>\n\n"+
+			"<b>%s</b> mentioned you in:\n"+
+			"📝 <b>%s</b>\n"+
 			"📋 Board: %s",
-		userName, cardTitle, boardTitle,
+		escapedUser, escapedTitle, escapedBoard,
 	)
 }
 
 func (t *TelegramService) FormatAssignmentNotification(cardTitle, boardTitle, userName string) string {
+	escapedTitle := html.EscapeString(cardTitle)
+	escapedBoard := html.EscapeString(boardTitle)
+	escapedUser := html.EscapeString(userName)
+
 	return fmt.Sprintf(
-		"👤 *You were assigned!*\n\n"+
-			"*%s* assigned you to:\n"+
-			"📝 *%s*\n"+
+		"👤 <b>You were assigned!</b>\n\n"+
+			"<b>%s</b> assigned you to:\n"+
+			"📝 <b>%s</b>\n"+
 			"📋 Board: %s",
-		userName, cardTitle, boardTitle,
+		escapedUser, escapedTitle, escapedBoard,
 	)
 }
 
@@ -94,17 +108,23 @@ func (t *TelegramService) FormatStatusChangeNotification(cardTitle, boardTitle, 
 }
 
 func (t *TelegramService) FormatStatusChangeNotificationWithURL(cardTitle, boardTitle, userName, oldStatus, newStatus, cardURL string) string {
-	cardDisplay := fmt.Sprintf("*%s*", cardTitle)
+	escapedTitle := html.EscapeString(cardTitle)
+	escapedBoard := html.EscapeString(boardTitle)
+	escapedUser := html.EscapeString(userName)
+	escapedOldStatus := html.EscapeString(oldStatus)
+	escapedNewStatus := html.EscapeString(newStatus)
+
+	cardDisplay := fmt.Sprintf("<b>%s</b>", escapedTitle)
 	if cardURL != "" {
-		cardDisplay = fmt.Sprintf("[%s](%s)", cardTitle, cardURL)
+		cardDisplay = fmt.Sprintf("<a href=\"%s\">%s</a>", cardURL, escapedTitle)
 	}
 	return fmt.Sprintf(
-		"🔄 *Card Status Changed*\n\n"+
-			"*%s* moved:\n"+
+		"🔄 <b>Card Status Changed</b>\n\n"+
+			"<b>%s</b> moved:\n"+
 			"📝 %s\n"+
 			"📋 Board: %s\n\n"+
 			"From: %s → To: %s",
-		userName, cardDisplay, boardTitle, oldStatus, newStatus,
+		escapedUser, cardDisplay, escapedBoard, escapedOldStatus, escapedNewStatus,
 	)
 }
 
@@ -119,17 +139,22 @@ func (t *TelegramService) FormatCommentNotificationWithURL(cardTitle, boardTitle
 		commentText = commentText[:maxCommentLen] + "..."
 	}
 
-	cardDisplay := fmt.Sprintf("*%s*", cardTitle)
+	escapedTitle := html.EscapeString(cardTitle)
+	escapedBoard := html.EscapeString(boardTitle)
+	escapedUser := html.EscapeString(userName)
+	escapedComment := html.EscapeString(commentText)
+
+	cardDisplay := fmt.Sprintf("<b>%s</b>", escapedTitle)
 	if cardURL != "" {
-		cardDisplay = fmt.Sprintf("[%s](%s)", cardTitle, cardURL)
+		cardDisplay = fmt.Sprintf("<a href=\"%s\">%s</a>", cardURL, escapedTitle)
 	}
 
 	return fmt.Sprintf(
-		"💬 *New Comment*\n\n"+
-			"*%s* commented on:\n"+
+		"💬 <b>New Comment</b>\n\n"+
+			"<b>%s</b> commented on:\n"+
 			"📝 %s\n"+
 			"📋 Board: %s\n\n"+
 			"💭 %s",
-		userName, cardDisplay, boardTitle, commentText,
+		escapedUser, cardDisplay, escapedBoard, escapedComment,
 	)
 }

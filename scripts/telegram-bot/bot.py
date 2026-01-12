@@ -68,26 +68,26 @@ async def unlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /help command"""
     help_text = (
-        "🤖 *Focalboard Telegram Bot*\n\n"
-        "*Available Commands:*\n"
+        "🤖 <b>Focalboard Telegram Bot</b>\n\n"
+        "<b>Available Commands:</b>\n"
         "/start - Link your Focalboard account\n"
         "/help - Show this help message\n"
         "/unlink - Unlink your account\n\n"
-        "*Notifications:*\n"
+        "<b>Notifications:</b>\n"
         "• Card created\n"
         "• Card updated\n"
         "• @mentions\n"
         "• Card assignments\n\n"
         "Configure your notification preferences in Focalboard settings."
     )
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+    await update.message.reply_text(help_text, parse_mode="HTML")
 
 
 # Webhook endpoint for receiving notification requests from Go server
 async def send_telegram_message(chat_id: str, message: str):
     try:
         await bot_instance.bot.send_message(
-            chat_id=chat_id, text=message, parse_mode="Markdown"
+            chat_id=chat_id, text=message, parse_mode="HTML"
         )
     except Exception as e:
         print(f"Error sending message to {chat_id}: {e}")
@@ -105,7 +105,7 @@ def send_notification():
         # Properly schedule on bot's loop
         future = asyncio.run_coroutine_threadsafe(
             bot_instance.bot.send_message(
-                chat_id=chat_id, text=message, parse_mode="Markdown"
+                chat_id=chat_id, text=message, parse_mode="HTML"
             ),
             bot_loop,
         )
